@@ -55,9 +55,15 @@ vi.mock('../utils/debugLogger.js', () => ({
 describe('Telemetry SDK', () => {
   let mockConfig: Config;
   const mockGetApplicationDefault = vi.fn();
+  const originalGoogleCloudProject = process.env['GOOGLE_CLOUD_PROJECT'];
+  const originalOtlpGoogleCloudProject =
+    process.env['OTLP_GOOGLE_CLOUD_PROJECT'];
 
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env['GOOGLE_CLOUD_PROJECT'];
+    delete process.env['OTLP_GOOGLE_CLOUD_PROJECT'];
+
     vi.mocked(GoogleAuth).mockImplementation(
       () =>
         ({
@@ -80,6 +86,12 @@ describe('Telemetry SDK', () => {
 
   afterEach(async () => {
     await shutdownTelemetry(mockConfig);
+    if (originalGoogleCloudProject) {
+      process.env['GOOGLE_CLOUD_PROJECT'] = originalGoogleCloudProject;
+    }
+    if (originalOtlpGoogleCloudProject) {
+      process.env['OTLP_GOOGLE_CLOUD_PROJECT'] = originalOtlpGoogleCloudProject;
+    }
   });
 
   it('should use gRPC exporters when protocol is grpc', async () => {

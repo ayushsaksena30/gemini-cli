@@ -1543,6 +1543,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       warningMessage,
       bannerData,
       bannerVisible,
+      terminalBackgroundColor: config.getTerminalBackground(),
     }),
     [
       isThemeDialogOpen,
@@ -1634,6 +1635,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       warningMessage,
       bannerData,
       bannerVisible,
+      config,
     ],
   );
 
