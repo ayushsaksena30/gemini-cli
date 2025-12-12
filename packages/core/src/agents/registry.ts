@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Storage } from '../config/storage.js';
+import { coreEvents } from '../utils/events.js';
 import type { Config } from '../config/config.js';
 import type { AgentDefinition } from './types.js';
+import { loadAgentsFromDirectory } from './toml-loader.js';
 import { CodebaseInvestigatorAgent } from './codebase-investigator.js';
 import { type z } from 'zod';
 import { debugLogger } from '../utils/debugLogger.js';
@@ -40,6 +43,46 @@ export class AgentRegistry {
    */
   async initialize(): Promise<void> {
     this.loadBuiltInAgents();
+
+    if (!this.config.isAgentsEnabled()) {
+      return;
+    }
+
+    // Load user-level agents: ~/.gemini/agents/
+    const userAgentsDir = Storage.getUserAgentsDir();
+    const userAgents = await loadAgentsFromDirectory(userAgentsDir);
+    for (const error of userAgents.errors) {
+      debugLogger.warn(
+        `[AgentRegistry] Error loading user agent: ${error.message}`,
+      );
+      coreEvents.emitFeedback('error', `Agent loading error: ${error.message}`);
+    }
+    for (const agent of userAgents.agents) {
+      this.registerAgent(agent);
+    }
+
+    // Load project-level agents: .gemini/agents/ (relative to Project Root)
+    const folderTrustEnabled = this.config.getFolderTrust();
+    const isTrustedFolder = this.config.isTrustedFolder();
+
+    if (!folderTrustEnabled || isTrustedFolder) {
+      const projectAgentsDir = this.config.storage.getProjectAgentsDir();
+      const projectAgents = await loadAgentsFromDirectory(projectAgentsDir);
+      for (const error of projectAgents.errors) {
+        coreEvents.emitFeedback(
+          'error',
+          `Agent loading error: ${error.message}`,
+        );
+      }
+      for (const agent of projectAgents.agents) {
+        this.registerAgent(agent);
+      }
+    } else {
+      coreEvents.emitFeedback(
+        'info',
+        'Skipping project agents due to untrusted folder. To enable, ensure that the project root is trusted.',
+      );
+    }
 
     if (this.config.getDebugMode()) {
       debugLogger.log(
